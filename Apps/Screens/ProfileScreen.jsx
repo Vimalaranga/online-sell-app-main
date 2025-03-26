@@ -39,7 +39,7 @@ const ProfileScreen = () => {
   }, []);
 
   const menuItems = [
-    { id: 1, name: "My Ads", icon: "ads", path: "my-products" },
+    { id: 1, name: "My Ads", icon: "campaign", path: "my-products" },
     { id: 2, name: "Favorites", icon: "favorite", path: "favorites" },
     { id: 3, name: "Settings", icon: "settings", path: "settings" },
     { id: 4, name: "Edit Profile", icon: "edit", path: "editprofile" },

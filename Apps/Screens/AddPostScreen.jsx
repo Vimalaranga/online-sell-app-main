@@ -2,41 +2,31 @@ import {
   View,
   Text,
   TextInput,
-  Button,
   StyleSheet,
   TouchableOpacity,
   Image,
-  ToastAndroid,
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
+  Platform,
 } from "react-native";
 import React, { useState, useEffect } from "react";
-import {
-  addDoc,
-  collection,
-  getDocs,
-  getFirestore,
-  image,
-} from "firebase/firestore";
+import { addDoc, collection, getDocs, getFirestore } from "firebase/firestore";
 import { app } from "../../firebaseConfig";
 import { Formik } from "formik";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
-
 import { getAuth } from "firebase/auth";
+import { MaterialIcons } from "@expo/vector-icons";
 
 export default function AddPostScreen() {
   const [image, setImage] = useState(null);
   const db = getFirestore(app);
   const storage = getStorage();
-
   const auth = getAuth(app);
-
-  const [Loading, setLoading] = useState(false);
-
+  const [loading, setLoading] = useState(false);
   const [categoryList, setCategoryList] = useState([]);
 
   useEffect(() => {
@@ -44,82 +34,79 @@ export default function AddPostScreen() {
   }, []);
 
   const getCategoryList = async () => {
-    setCategoryList([]);
     const querySnapshot = await getDocs(collection(db, "Category"));
-
-    querySnapshot.forEach((doc) => {
-      console.log("Docs:", doc.data());
-      setCategoryList((categoryList) => [...categoryList, doc.data()]);
-    });
+    const categories = querySnapshot.docs.map(doc => doc.data());
+    setCategoryList(categories);
   };
+
   const pickImage = async () => {
-    // No permissions request is necessary for launching the image library
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 1,
+      quality: 0.8,
     });
-
-    console.log(result);
 
     if (!result.canceled) {
       setImage(result.assets[0].uri);
     }
   };
+
   const onSubmitMethod = async (value) => {
-    setLoading(true);
-    // Get the current user ID
-    const user = auth.currentUser;
-    const userId = user ? user.uid : null;
+    try {
+      setLoading(true);
+      const user = auth.currentUser;
+      if (!user) throw new Error("User not authenticated");
 
-    // Include the user ID in the form values
-    value.userId = userId;
-    //convert url o blob file
-    const resp = await fetch(image);
-    const blob = await resp.blob();
-    const storageRef = ref(storage, "addsphotos/" + Date.now() + ".jpg");
+      // Upload image
+      const response = await fetch(image);
+      const blob = await response.blob();
+      const storageRef = ref(storage, `posts/${Date.now()}`);
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
 
-    uploadBytes(storageRef, blob)
-      .then((snapshot) => {
-        console.log("Uploaded a blob or file!");
-      })
-      .then((resp) => {
-        getDownloadURL(storageRef).then(async (getDownloadURL) => {
-          console.log(getDownloadURL);
-          value.image = getDownloadURL;
-
-          const docRef = await addDoc(collection(db, "userPost"), value);
-          if (docRef.id) {
-            setLoading(false);
-            Alert.alert("Success!!!", "Post Added Successffully.");
-          }
-        });
-      });
+      // Create post document
+      const postData = {
+        ...value,
+        userId: user.uid,
+        image: downloadURL,
+        createdAt: Date.now(),
+      };
+      
+      await addDoc(collection(db, "userPost"), postData);
+      Alert.alert("Success", "Post created successfully!");
+      setLoading(false);
+    } catch (error) {
+      Alert.alert("Error", error.message);
+      setLoading(false);
+    }
   };
+
   return (
-    <KeyboardAvoidingView>
-      <ScrollView style={styles.container}>
-        <Text style={styles.title}>Add New Post</Text>
-        <Text style={styles.subtitle}>Create New Post and Start Selling</Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Text style={styles.title}>Create New Post</Text>
+        <Text style={styles.subtitle}>Share your item with the community</Text>
+
         <Formik
           initialValues={{
-            name: "",
+            title: "",
             desc: "",
             category: "",
             address: "",
             price: "",
-            image: "",
-            createdAt: Date.now(),
           }}
-          onSubmit={(value) => onSubmitMethod(value)}
-          validate={(values) => {
+          onSubmit={onSubmitMethod}
+          validate={values => {
             const errors = {};
-            if (!values.title) {
-              console.log("Title not present");
-              ToastAndroid.show("Title Must be there", ToastAndroid.SHORT);
-              errors.name = "Title Must be there";
-            }
+            if (!values.title) errors.title = "Title is required";
+            if (!values.desc) errors.desc = "Description is required";
+            if (!values.price) errors.price = "Price is required";
+            if (!values.category) errors.category = "Category is required";
+            if (!image) errors.image = "Image is required";
             return errors;
           }}
         >
@@ -130,76 +117,124 @@ export default function AddPostScreen() {
             values,
             setFieldValue,
             errors,
+            touched,
           }) => (
-            <View>
-              <TouchableOpacity onPress={pickImage}>
+            <View style={styles.formContainer}>
+              {/* Image Upload */}
+              <TouchableOpacity 
+                style={styles.imageUploadContainer}
+                onPress={pickImage}
+              >
                 {image ? (
                   <Image
                     source={{ uri: image }}
-                    style={{ width: 100, height: 100, borderRadius: 15 }}
+                    style={styles.previewImage}
                   />
                 ) : (
-                  <Image
-                    source={require("./../../assets/images/placeholder.jpg")}
-                    style={{ width: 100, height: 100, borderRadius: 15 }}
-                  />
+                  <View style={styles.uploadPlaceholder}>
+                    <MaterialIcons name="add-a-photo" size={32} color="#666" />
+                    <Text style={styles.uploadText}>Tap to upload photo</Text>
+                  </View>
+                )}
+                {errors.image && touched.image && (
+                  <Text style={styles.errorText}>{errors.image}</Text>
                 )}
               </TouchableOpacity>
-              <TextInput
-                style={styles.input}
-                placeholder="Title"
-                value={values?.title}
-                onChangeText={handleChange("title")}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Description"
-                value={values?.desc}
-                numberOfLines={5}
-                onChangeText={handleChange("desc")}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Price"
-                value={values?.price}
-                keyboardType="number-pad"
-                onChangeText={handleChange("price")}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Address"
-                value={values?.address}
-                onChangeText={handleChange("address")}
-              />
-              <View style={{ borderWidth: 1, borderRadius: 10, marginTop: 10 }}>
-                <Picker
-                  selectedValue={values?.category}
-                  onValueChange={(itemValue) =>
-                    setFieldValue("category", itemValue)
-                  }
-                >
-                  {categoryList &&
-                    categoryList.map((Item, index) => (
-                      <Picker.Item
-                        key={index}
-                        label={Item.name}
-                        value={Item.name}
-                      />
-                    ))}
-                </Picker>
+
+              {/* Title Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Item Title</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter item title"
+                  placeholderTextColor="#999"
+                  value={values.title}
+                  onChangeText={handleChange("title")}
+                  onBlur={handleBlur("title")}
+                />
+                {errors.title && touched.title && (
+                  <Text style={styles.errorText}>{errors.title}</Text>
+                )}
               </View>
+
+              {/* Description Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Description</Text>
+                <TextInput
+                  style={[styles.input, styles.descriptionInput]}
+                  placeholder="Describe your item..."
+                  placeholderTextColor="#999"
+                  value={values.desc}
+                  onChangeText={handleChange("desc")}
+                  onBlur={handleBlur("desc")}
+                  multiline
+                  numberOfLines={4}
+                />
+                {errors.desc && touched.desc && (
+                  <Text style={styles.errorText}>{errors.desc}</Text>
+                )}
+              </View>
+
+              {/* Price Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Price</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter price"
+                  placeholderTextColor="#999"
+                  value={values.price}
+                  onChangeText={handleChange("price")}
+                  onBlur={handleBlur("price")}
+                  keyboardType="decimal-pad"
+                />
+                {errors.price && touched.price && (
+                  <Text style={styles.errorText}>{errors.price}</Text>
+                )}
+              </View>
+
+              {/* Category Picker */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Category</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={values.category}
+                    onValueChange={itemValue => setFieldValue("category", itemValue)}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select Category" value="" />
+                    {categoryList.map((item, index) => (
+                      <Picker.Item key={index} label={item.name} value={item.name} />
+                    ))}
+                  </Picker>
+                </View>
+                {errors.category && touched.category && (
+                  <Text style={styles.errorText}>{errors.category}</Text>
+                )}
+              </View>
+
+              {/* Location Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Location</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter item location"
+                  placeholderTextColor="#999"
+                  value={values.address}
+                  onChangeText={handleChange("address")}
+                  onBlur={handleBlur("address")}
+                />
+              </View>
+
+              {/* Submit Button */}
               <TouchableOpacity
-                style={[
-                  styles.button,
-                  { backgroundColor: Loading ? "#ccc" : "#ff4500" },
-                ]}
+                style={[styles.button, loading && styles.buttonDisabled]}
                 onPress={handleSubmit}
-                disabled={Loading}
+                disabled={loading}
               >
-                {Loading ? (
+                {loading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>Submit</Text>
+                  <Text style={styles.buttonText}>Publish Listing</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -212,39 +247,108 @@ export default function AddPostScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 40, // Equivalent to "p-10" in Tailwind CSS
+    flex: 1,
+    backgroundColor: "#f8f9fa",
   },
-
-  input: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
-    paddingHorizontal: 17,
-    marginTop: 10,
-    marginBottom: 5,
-    fontSize: 17,
-    textAlignVertical: "top",
-  },
-
-  button: {
-    padding: 15,
-    backgroundColor: "#ff4500", // Blue color
-    borderRadius: 999, // Rounded-full equivalent
-    marginTop: 15,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#FFFFFF", // White text color
-    fontSize: 16,
-    fontWeight: "bold",
+  scrollContainer: {
+    padding: 24,
   },
   title: {
-    fontSize: 30,
-    fontWeight: "bold",
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#2d3436",
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "gray",
-    marginBottom: 10,
+    color: "#636e72",
+    marginBottom: 24,
+  },
+  formContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  imageUploadContainer: {
+    marginBottom: 24,
+  },
+  previewImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 12,
+  },
+  uploadPlaceholder: {
+    width: "100%",
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: "#f1f2f6",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#e9ecef",
+    borderStyle: "dashed",
+  },
+  uploadText: {
+    marginTop: 8,
+    color: "#666",
+    fontSize: 16,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    color: "#2d3436",
+    marginBottom: 8,
+    fontWeight: "500",
+  },
+  input: {
+    backgroundColor: "#f8f9fa",
+    borderRadius: 10,
+    padding: 16,
+    fontSize: 16,
+    color: "#2d3436",
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  descriptionInput: {
+    height: 100,
+    textAlignVertical: "top",
+  },
+  pickerContainer: {
+    backgroundColor: "#f8f9fa",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  picker: {
+    height: 50,
+    color: "#2d3436",
+  },
+  button: {
+    backgroundColor: "#00a896",
+    borderRadius: 10,
+    padding: 18,
+    alignItems: "center",
+    marginTop: 24,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  errorText: {
+    color: "#e63946",
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 8,
   },
 });

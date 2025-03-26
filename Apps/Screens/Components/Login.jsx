@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../../firebaseConfig";
-import ShoppingIcon from "./../../../assets/images/shopping-online.png";
+import ShoppingIcon from "./../../../assets/images/shopping-online1.png";
 
 const Login = ({ navigation }) => {
   const [email, setEmail] = useState("");
@@ -22,70 +22,80 @@ const Login = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
     setLoading(true);
     signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
         const user = userCredential.user;
-        Alert.alert("Logged in!", `Welcome back, ${user.email}!`);
-        setLoading(false);
+        Alert.alert("Success", `Welcome back, ${user.email}!`);
         navigation.navigate("TabNavigation");
       })
       .catch((error) => {
-        const errorMessage = error.message;
-        Alert.alert("Login failed", errorMessage);
-        setLoading(false);
-      });
+        Alert.alert("Error", error.message);
+      })
+      .finally(() => setLoading(false));
   };
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>Login</Text>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.header}>
+          <Image source={ShoppingIcon} style={styles.logo} />
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>Sign in to continue</Text>
         </View>
 
-        <View style={styles.imageContainer}>
-          <Image source={ShoppingIcon} style={styles.icon} />
-        </View>
         <View style={styles.formContainer}>
-          <TextInput
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            style={styles.input}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoCompleteType="email"
-          />
-          <TextInput
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            style={styles.input}
-            autoCompleteType="password"
-          />
-          <TouchableOpacity
-            style={[
-              styles.button,
-              { backgroundColor: loading ? "#ccc" : "#ff4500" },
-            ]}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Email Address</Text>
+            <TextInput
+              placeholder="Enter your email"
+              placeholderTextColor="#999"
+              value={email}
+              onChangeText={setEmail}
+              style={styles.input}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Password</Text>
+            <TextInput
+              placeholder="Enter your password"
+              placeholderTextColor="#999"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              style={styles.input}
+              autoComplete="password"
+            />
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Login</Text>
+              <Text style={styles.buttonText}>Sign In</Text>
             )}
           </TouchableOpacity>
-          <View style={styles.linkContainer}>
-            <Text style={styles.linkText}>Don't have an account? </Text>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Don't have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate("Register")}>
-              <Text style={styles.linkTextClickable}>Register</Text>
+              <Text style={styles.footerLink}>Create Account</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -96,68 +106,89 @@ const Login = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    padding: 40,
-    justifyContent: "center",
+    flex: 1,
+    backgroundColor: "#f8f9fa",
   },
-  titleContainer: {
-    position: "absolute",
-    top: 40, // Adjust as needed
-    left: 0,
-    right: 280,
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+  },
+  header: {
     alignItems: "center",
+    paddingVertical: 40,
+  },
+  logo: {
+    width: 150,
+    height: 150,
+    marginBottom: 24,
   },
   title: {
-    fontSize: 30,
-    fontWeight: "bold",
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#2d3436",
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#636e72",
   },
   formContainer: {
-    marginTop: 40,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  imageContainer: {
-    alignItems: "center",
+  inputContainer: {
     marginBottom: 20,
   },
-  icon: {
-    width: 180,
-    height: 180,
-    marginTop: 70,
+  inputLabel: {
+    fontSize: 14,
+    color: "#2d3436",
+    marginBottom: 8,
+    fontWeight: "500",
   },
   input: {
-    borderWidth: 1,
+    backgroundColor: "#f8f9fa",
     borderRadius: 10,
-    padding: 10,
-    paddingHorizontal: 17,
-    marginTop: 10,
-    marginBottom: 5,
-    fontSize: 17,
-    textAlignVertical: "top",
+    padding: 16,
+    fontSize: 16,
+    color: "#2d3436",
+    borderWidth: 1,
+    borderColor: "#e9ecef",
   },
   button: {
-    padding: 15,
-    backgroundColor: "#ff4500",
-    borderRadius: 999,
-    marginTop: 15,
+    backgroundColor: "#ff6b6b",
+    borderRadius: 10,
+    padding: 18,
     alignItems: "center",
+    marginTop: 16,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   buttonText: {
-    color: "#FFFFFF",
+    color: "#fff",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "600",
   },
-  linkContainer: {
+  footer: {
     flexDirection: "row",
-    marginTop: 15,
     justifyContent: "center",
-    alignItems: "center",
+    marginTop: 24,
   },
-  linkText: {
-    fontSize: 16,
-    color: "gray",
+  footerText: {
+    color: "#636e72",
+    fontSize: 14,
   },
-  linkTextClickable: {
-    fontSize: 16,
-    color: "#ff4500",
+  footerLink: {
+    color: "#ff6b6b",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
 
