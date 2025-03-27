@@ -1,32 +1,80 @@
-import { View, Text, Image, TextInput } from "react-native";
+import { View, Text, Image, TextInput, StyleSheet } from "react-native";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function Header() {
   return (
-    <View>
-      <View className="flex flex-row items-center gap-2">
+    <View style={styles.container}>
+      <View style={styles.profileContainer}>
         <Image
           source={require("./../../../../assets/images/profilepic.jpg")}
-          style={{ width: 48, height: 48, borderRadius: 24 }}
+          style={styles.profileImage}
         />
-        <View>
-          <Text className="font-bold text-[13px]">Welcome !</Text>
-          {/* <Text>user name</Text> */}
+        <View style={styles.welcomeText}>
+          <Text style={styles.welcomeTitle}>Welcome back!</Text>
+          <Text style={styles.userName}>Guest User</Text>
         </View>
       </View>
-      <View
-        className="p-[10px] px-5 flex flex-row 
-      items-center bg-gray-100 mt-5 rounded-full
-      border-[1px] border-blue-400"
-      >
-        <Ionicons name="search" size={24} color="gray" />
+
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#6B7280" />
         <TextInput
-          placeholder="Search"
-          className="ml-2 text-[18px]"
+          placeholder="Search products..."
+          placeholderTextColor="#9CA3AF"
+          style={styles.searchInput}
           onChangeText={(value) => console.log(value)}
         />
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+  },
+  profileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  profileImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  welcomeText: {
+    flexDirection: 'column',
+  },
+  welcomeTitle: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 28,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#1F2937',
+    paddingVertical: 0,
+  },
+});

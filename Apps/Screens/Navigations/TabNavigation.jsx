@@ -19,11 +19,11 @@ export default function TabNavigation() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#ff4500",
-        tabBarInactiveTintColor: "gray",
+        tabBarInactiveTintColor: "black",
       }}
     >
       <Tab.Screen
-        name="home-nav"
+        name="home"
         component={HomeScreenStackNav}
         options={{
           tabBarLabel: ({ color }) => (
